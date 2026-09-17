@@ -1,0 +1,6 @@
+{
+  "name": "Snack & Pastry Eatery",
+  "description": "UniqueTrain snack and pastry ordering app with Ghana Cedis pricing, WhatsApp checkout to +233557448975, and owner management dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
