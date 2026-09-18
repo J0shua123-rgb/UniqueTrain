@@ -125,28 +125,28 @@ const MainLayout: React.FC = () => {
       </div>
 
       {/* Footer Area with Discrete Subtle Lock Icon for Staff */}
-      <footer className="bg-stone-900 text-stone-400 pt-8 pb-24 sm:pb-8 px-4 text-center text-xs mt-auto border-t border-stone-800">
+      <footer className="bg-stone-900 text-stone-300 pt-8 pb-24 sm:pb-8 px-4 text-center text-xs mt-auto border-t border-stone-800">
         <div className="max-w-md mx-auto space-y-2">
-          <p className="font-semibold text-stone-200">
+          <p className="font-semibold text-stone-100">
             {settings.shopName} • {settings.address}
           </p>
-          <p className="text-stone-400 text-[11px]">
+          <p className="text-stone-300 text-[11px]">
             {settings.tagline} • Order freshly baked pies, doughnuts & crunchy chips.
           </p>
-          <p className="text-[10px] text-stone-500">
+          <p className="text-[10px] text-stone-400">
             Dispatched directly across Diamond-City, Happy Home & nearby areas.
           </p>
 
           {/* Subtle footer bottom bar with discrete lock */}
-          <div className="pt-4 mt-4 border-t border-stone-800/80 flex items-center justify-between text-[11px] text-stone-500 px-2">
-            <span>© {new Date().getFullYear()} {settings.shopName} (GH₵)</span>
+          <div className="pt-4 mt-4 border-t border-stone-800/80 flex items-center justify-between text-[11px] text-stone-400 px-2">
+            <span>© 2026 UniqueTrain. All rights reserved.</span>
             
             {/* Discrete, subtle lock icon */}
             <button
               id="btn-footer-staff-lock"
               type="button"
               onClick={handleFooterLockClick}
-              className="p-1.5 text-stone-600 hover:text-stone-300 transition-colors opacity-35 hover:opacity-100 rounded-md"
+              className="p-1.5 text-stone-500 hover:text-stone-200 transition-colors opacity-35 hover:opacity-100 rounded-md"
               title="Staff Access"
               aria-label="Staff Access"
             >
