@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { INITIAL_PRODUCTS, INITIAL_SETTINGS } from '../data/initialProducts';
 import { CartItem, Product, StoreSettings, SystemErrorAlert } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface StoreContextType {
   products: Product[];
@@ -40,10 +41,10 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-const PRODUCTS_STORAGE_KEY = 'uniquetrain_snack_products_v2';
-const SETTINGS_STORAGE_KEY = 'uniquetrain_snack_settings_v2';
 const CART_STORAGE_KEY = 'uniquetrain_snack_cart_v2';
 const ERROR_LOGS_STORAGE_KEY = 'uniquetrain_error_alerts_v1';
+const SETTINGS_STORAGE_KEY = 'uniquetrain_snack_settings_v2';
+const PRODUCTS_STORAGE_KEY = 'uniquetrain_snack_products_v2';
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>(() => {
@@ -55,8 +56,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return parsed;
         }
       }
-      // Clear legacy storage keys if present
-      localStorage.removeItem('eatery_snack_products_v1');
     } catch {
       // fallback to initial
     }
@@ -72,13 +71,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return parsed;
         }
       }
-      // Clear legacy storage keys if present
-      localStorage.removeItem('eatery_snack_settings_v1');
     } catch {
       // fallback
     }
     return INITIAL_SETTINGS;
   });
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [supabaseConnected, setSupabaseConnected] = useState(false);
 
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
@@ -96,6 +96,83 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
   const [isAdminPinModalOpen, setIsAdminPinModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Fetch products from Supabase
+  const fetchProducts = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('*')
+        .order('order_count', { ascending: false });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const transformedProducts: Product[] = data.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          price: Number(item.price),
+          description: item.description,
+          imageUrl: item.image_url,
+          inStock: item.in_stock,
+          isPopular: item.is_popular,
+          preparationTime: item.preparation_time,
+          orderCount: item.order_count,
+        }));
+        setProducts(transformedProducts);
+        setSupabaseConnected(true);
+      } else {
+        setSupabaseConnected(true);
+      }
+    } catch (error) {
+      console.error('Error fetching products from Supabase, using localStorage:', error);
+      setSupabaseConnected(false);
+      // Keep using localStorage products
+    }
+  }, []);
+
+  // Fetch settings from Supabase
+  const fetchSettings = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('store_settings')
+        .select('*')
+        .eq('id', 'default')
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const transformedSettings: StoreSettings = {
+          shopName: data.shop_name,
+          tagline: data.tagline,
+          whatsappNumber: data.whatsapp_number,
+          address: data.address,
+          openingHours: data.opening_hours,
+          currencySymbol: data.currency_symbol,
+          deliveryFee: Number(data.delivery_fee),
+          adminPin: data.admin_pin,
+        };
+        setSettings(transformedSettings);
+        setSupabaseConnected(true);
+      }
+    } catch (error) {
+      console.error('Error fetching settings from Supabase, using localStorage:', error);
+      setSupabaseConnected(false);
+      // Keep using localStorage settings
+    }
+  }, []);
+
+  // Load initial data from Supabase
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchProducts(), fetchSettings()]);
+      setIsLoading(false);
+    };
+    loadData();
+  }, [fetchProducts, fetchSettings]);
 
   // System error alerts feed
   const [errorAlerts, setErrorAlerts] = useState<SystemErrorAlert[]>(() => {
@@ -246,7 +323,80 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return { success: true, message: 'Security PIN changed successfully!' };
   };
 
-  // Sync to local storage
+  // Sync products to Supabase when they change (only if connected)
+  useEffect(() => {
+    if (isLoading || !supabaseConnected) return;
+
+    const syncProducts = async () => {
+      try {
+        // Use upsert to handle existing products (update if exists, insert if new)
+        const productsToUpsert = products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          price: p.price,
+          description: p.description,
+          image_url: p.imageUrl,
+          in_stock: p.inStock,
+          is_popular: p.isPopular,
+          preparation_time: p.preparationTime,
+          order_count: p.orderCount || 0,
+        }));
+
+        if (productsToUpsert.length > 0) {
+          const { error } = await supabase
+            .from('menu_items')
+            .upsert(productsToUpsert, { onConflict: 'id' });
+          if (error) throw error;
+        }
+      } catch (error) {
+        console.error('Error syncing products to Supabase:', error);
+        setSupabaseConnected(false);
+      }
+    };
+
+    syncProducts();
+  }, [products, isLoading, supabaseConnected]);
+
+  // Sync settings to Supabase when they change (only if connected)
+  useEffect(() => {
+    if (isLoading || !supabaseConnected) return;
+
+    const syncSettings = async () => {
+      try {
+        const { error } = await supabase
+          .from('store_settings')
+          .upsert({
+            id: 'default',
+            shop_name: settings.shopName,
+            tagline: settings.tagline,
+            whatsapp_number: settings.whatsappNumber,
+            address: settings.address,
+            opening_hours: settings.openingHours,
+            currency_symbol: settings.currencySymbol,
+            delivery_fee: settings.deliveryFee,
+            admin_pin: settings.adminPin,
+            updated_at: new Date().toISOString(),
+          });
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error syncing settings to Supabase:', error);
+        setSupabaseConnected(false);
+      }
+    };
+
+    syncSettings();
+  }, [settings, isLoading, supabaseConnected]);
+
+  // Always sync to localStorage as fallback
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    } catch {
+      // ignore
+    }
+  }, [cart]);
+
   useEffect(() => {
     try {
       localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
@@ -262,14 +412,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // ignore
     }
   }, [settings]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
-    } catch {
-      // ignore
-    }
-  }, [cart]);
 
   // Product actions
   const addProduct = (newProductData: Omit<Product, 'id'>) => {
@@ -310,11 +452,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
-  const resetProducts = () => {
-    setProducts(INITIAL_PRODUCTS);
-    setSettings(INITIAL_SETTINGS);
-    setCart([]);
-  };
+  const resetProducts = useCallback(async () => {
+    try {
+      if (supabaseConnected) {
+        await supabase.from('menu_items').delete().neq('id', 'placeholder');
+        await supabase.from('store_settings').delete().eq('id', 'default');
+      }
+      setProducts(INITIAL_PRODUCTS);
+      setSettings(INITIAL_SETTINGS);
+      setCart([]);
+      if (supabaseConnected) {
+        await fetchProducts();
+        await fetchSettings();
+      }
+    } catch (error) {
+      console.error('Error resetting products:', error);
+    }
+  }, [supabaseConnected, fetchProducts, fetchSettings]);
 
   // Cart actions
   const addToCart = (product: Product, quantity = 1) => {
