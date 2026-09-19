@@ -15,6 +15,7 @@ import {
 import { useStore } from '../context/StoreContext';
 import { OrderCustomerInfo } from '../types';
 import { formatCedis, formatDisplayPhone, generateOrderText, generateWhatsAppUrl } from '../utils/whatsapp';
+import { supabase } from '../lib/supabase';
 
 export const CartDrawer: React.FC = () => {
   const {
@@ -37,6 +38,7 @@ export const CartDrawer: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [copiedMomo, setCopiedMomo] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   if (!isCartOpen) return null;
 
@@ -52,7 +54,7 @@ export const CartDrawer: React.FC = () => {
     }
   };
 
-  const handleCheckoutWhatsApp = () => {
+  const handleCheckoutWhatsApp = async () => {
     if (cart.length === 0) return;
 
     if (!customerInfo.customerName.trim()) {
@@ -66,8 +68,71 @@ export const CartDrawer: React.FC = () => {
     }
 
     setValidationError(null);
+    setSuccessMessage(null);
+
+    // Open WhatsApp first with current cart data
     const waUrl = generateWhatsAppUrl(cart, customerInfo, settings);
     window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+    // Save order to Supabase
+    try {
+      const orderItems = cart.map(({ product, quantity }) => ({
+        productId: product.id,
+        productName: product.name,
+        quantity,
+        price: product.price,
+      }));
+
+      const orderData = {
+        customer_name: customerInfo.customerName,
+        momo_reference: customerInfo.momoReference,
+        phone: customerInfo.phone || null,
+        order_type: customerInfo.orderType || 'pickup',
+        delivery_address: customerInfo.deliveryAddress || null,
+        special_instructions: customerInfo.specialInstructions || null,
+        total_amount: cartSubtotal,
+        items: orderItems,
+        status: 'pending',
+      };
+
+      console.log('📦 Attempting to save order to Supabase:', orderData);
+
+      const { data, error } = await supabase.from('orders').insert(orderData).select();
+
+      if (error) {
+        console.error('❌ Supabase insert error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        alert(`Failed to save order to database: ${error.message}. Your WhatsApp order has been sent.`);
+      } else {
+        console.log('✅ Order saved successfully to Supabase:', data);
+        
+        // Clear cart and show success message after successful save
+        clearCart();
+        setCustomerInfo({
+          customerName: '',
+          momoReference: '',
+          phone: '',
+          orderType: 'pickup',
+          deliveryAddress: '',
+          specialInstructions: '',
+        });
+        setSuccessMessage('Order placed successfully! Thank you for your order.');
+        
+        // Close cart drawer after 3 seconds
+        setTimeout(() => {
+          setIsCartOpen(false);
+          setSuccessMessage(null);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('❌ Unexpected error saving order:', error);
+      alert('An unexpected error occurred while saving your order. Your WhatsApp order has been sent.');
+    }
   };
 
   const handleCopyOrderText = async () => {
@@ -250,7 +315,7 @@ export const CartDrawer: React.FC = () => {
                     <span className="text-[10px] text-stone-500 block font-medium">Send GH₵ 2.00 to Shop MoMo:</span>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-mono font-extrabold text-stone-900 text-sm tracking-wider">0557448975</span>
-                      <span className="text-[10px] text-stone-500 font-medium">(UniqueTrain)</span>
+                      <span className="text-[10px] text-stone-500 font-medium">(Joshua Tettey Wayo)</span>
                     </div>
                   </div>
                   <button
@@ -294,6 +359,7 @@ export const CartDrawer: React.FC = () => {
                     value={customerInfo.customerName}
                     onChange={(e) => {
                       setValidationError(null);
+                      setSuccessMessage(null);
                       setCustomerInfo((prev) => ({ ...prev, customerName: e.target.value }));
                     }}
                     placeholder="Enter your full name (e.g. Kwame Mensah)"
@@ -315,6 +381,7 @@ export const CartDrawer: React.FC = () => {
                     value={customerInfo.momoReference || ''}
                     onChange={(e) => {
                       setValidationError(null);
+                      setSuccessMessage(null);
                       setCustomerInfo((prev) => ({ ...prev, momoReference: e.target.value }));
                     }}
                     placeholder="Enter MoMo TxID (e.g. 29384729104 or SMS Ref)"
@@ -331,6 +398,14 @@ export const CartDrawer: React.FC = () => {
                 <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
                   <span>{validationError}</span>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {successMessage && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs">
+                  <Check className="w-4 h-4 shrink-0 text-emerald-500" />
+                  <span>{successMessage}</span>
                 </div>
               )}
 

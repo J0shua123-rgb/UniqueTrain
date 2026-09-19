@@ -23,7 +23,16 @@ export const Navbar: React.FC = () => {
             onClick={() => setActiveTab('customer')}
             className="flex items-center gap-2.5 cursor-pointer select-none"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-sm shadow-amber-200">
+            <img
+              src="/logo.png"
+              alt="UniqueTrain Logo"
+              className="w-10 h-10 rounded-xl object-contain shadow-sm"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-sm shadow-amber-200 hidden">
               <UtensilsCrossed className="w-5 h-5" />
             </div>
             <div>

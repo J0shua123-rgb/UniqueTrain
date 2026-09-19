@@ -49,3 +49,27 @@ export interface SystemErrorAlert {
   details?: string;
   count?: number;
 }
+
+export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled';
+
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  price: number;
+}
+
+export interface Order {
+  id: string;
+  customer_name: string;
+  momo_reference: string;
+  phone?: string;
+  order_type: 'pickup' | 'delivery';
+  delivery_address?: string;
+  special_instructions?: string;
+  total_amount: number;
+  items: OrderItem[];
+  status: OrderStatus;
+  created_at: string;
+  updated_at: string;
+}

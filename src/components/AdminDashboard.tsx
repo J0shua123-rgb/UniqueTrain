@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   KeyRound,
   ShieldAlert,
+  ShoppingCart,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Product } from '../types';
@@ -27,6 +28,7 @@ import { ProductModal } from './ProductModal';
 import { SettingsModal } from './SettingsModal';
 import { PinChangeCard } from './PinChangeCard';
 import { ErrorAlertFeed } from './ErrorAlertFeed';
+import { AdminOrders } from './AdminOrders';
 import { cleanPhoneNumber, formatCedis, formatDisplayPhone } from '../utils/whatsapp';
 
 export const AdminDashboard: React.FC = () => {
@@ -48,7 +50,7 @@ export const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'out_of_stock'>('all');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'catalog' | 'security' | 'alerts'>('catalog');
+  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'catalog' | 'orders' | 'security' | 'alerts'>('catalog');
 
   // Metrics calculations
   const totalItems = products.length;
@@ -291,11 +293,11 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Admin Navigation Sub-Tabs */}
-      <div className="flex items-center gap-2 border-b border-stone-200 pb-2">
+      <div className="flex items-center gap-2 border-b border-stone-200 pb-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveAdminSubTab('catalog')}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
             activeAdminSubTab === 'catalog'
               ? 'bg-stone-900 text-white shadow-xs'
               : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
@@ -307,8 +309,21 @@ export const AdminDashboard: React.FC = () => {
 
         <button
           type="button"
+          onClick={() => setActiveAdminSubTab('orders')}
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            activeAdminSubTab === 'orders'
+              ? 'bg-stone-900 text-white shadow-xs'
+              : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
+          }`}
+        >
+          <ShoppingCart className="w-3.5 h-3.5" />
+          <span>Orders</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveAdminSubTab('security')}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
             activeAdminSubTab === 'security'
               ? 'bg-stone-900 text-white shadow-xs'
               : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
@@ -321,7 +336,7 @@ export const AdminDashboard: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveAdminSubTab('alerts')}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
             activeAdminSubTab === 'alerts'
               ? 'bg-stone-900 text-white shadow-xs'
               : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
@@ -336,6 +351,11 @@ export const AdminDashboard: React.FC = () => {
           )}
         </button>
       </div>
+
+      {/* Sub-Tab: Orders Management */}
+      {activeAdminSubTab === 'orders' && (
+        <AdminOrders onBack={() => setActiveAdminSubTab('catalog')} />
+      )}
 
       {/* Sub-Tab: Security PIN Management */}
       {activeAdminSubTab === 'security' && (
